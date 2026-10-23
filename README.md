@@ -64,7 +64,7 @@ Not a debugging project; the investigative content is experimental: comparing ev
 
 - The complete pipeline code (17 modules, listed under Software Setup).
 - Reference paper (the method's source publication): Wang et al., "Spatial-Temporal Person Re-Identification", AAAI 2019 (arXiv:1812.03282), included in this repository as `Spatial-Temporal_Person_Re-identification_report.pdf` for reference.
-- Run outputs from my own training/evaluation are not included in this repository.
+- Executed Colab notebooks from the project period (November 2023 to February 2024), preserved as run with their outputs, in `notebooks/` (see `notebooks/README.md` for provenance). They contain the dataset preparation, the training invocations used (PCB with ResNet50 and ResNet101 variants), training logs, and evaluation output obtained with the authors' pretrained checkpoint.
 
 # Results
 
