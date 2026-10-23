@@ -18,6 +18,7 @@ Given a query image, return the gallery images of the same person, ranked by lik
 2. Train and evaluate on Market-1501 and DukeMTMC-reID.
 3. Generate spatial-temporal models and distribution analyses for both datasets.
 4. Evaluate with and without re-ranking to isolate its effect.
+5. Extend the model with colour histogram features (`model_chs.py`, `train_market_chsv.py`) and test whether the extension improves on the base configuration.
 
 # Hardware Setup
 
@@ -26,8 +27,8 @@ Not hardware-dependent. Training/evaluation is GPU-oriented PyTorch work; no spe
 # Software Setup
 
 - Python, PyTorch.
-- Datasets (not included, obtain from their original sources for research use): Market-1501, DukeMTMC-reID.
-- Entry points: `prepare.py` (dataset preparation), `train_market.py` / `train_duke.py` / `train_market_chsv.py` (training), `gen_st_model_market.py` / `gen_st_model_duke.py` (spatial-temporal models), `test_st_market.py` / `test_st_duke.py` (feature extraction/testing), `evaluate_st.py`, `evaluate_rerank_market.py`, `evaluate_rerank_duke.py`, `gen_rerank_all_scores_mat.py` (evaluation and re-ranking), `plot_st_distribution.py` (distribution plots).
+- Datasets (not included, obtain from their original sources for research use): Market-1501, DukeMTMC-reID. A CUHK03-NP preparation script from the extension work (`prepare_cuhk03.py`) is also included; that dataset is likewise external.
+- Entry points: `prepare.py` (dataset preparation), `prepare_cuhk03.py` (CUHK03-NP preparation), `train_market.py` / `train_duke.py` / `train_market_chsv.py` (training), `gen_st_model_market.py` / `gen_st_model_duke.py` (spatial-temporal models), `test_st_market.py` / `test_st_duke.py` (feature extraction/testing), `evaluate_st.py`, `evaluate_rerank_market.py`, `evaluate_rerank_duke.py`, `gen_rerank_all_scores_mat.py` (evaluation and re-ranking), `plot_st_distribution.py` (distribution plots).
 - `model.py` / `model_chs.py`: network definitions. `random_erasing.py`: data augmentation. `re_ranking.py`: re-ranking implementation.
 
 # Architecture
@@ -46,6 +47,8 @@ flowchart LR
 
 Benchmark-standard protocol on both datasets: train on the dataset's training split, extract features for query and gallery sets, score with the joint visual + spatial-temporal similarity, optionally re-rank, and compute Rank-1 accuracy and mAP. Spatial-temporal distributions are generated from camera IDs and timestamps and plotted for inspection (`plot_st_distribution.py`).
 
+Extension experiment (documented in my project report): a HistogramFeatureExtractor computes a normalized RGB colour histogram (256 bins per channel) for each image and concatenates it with the visual features. The base model and the histogram-augmented model were trained under an identical protocol for 60 epochs on Market-1501, with training and validation accuracy compared across epochs.
+
 # Test Matrix
 
 | Stage | Verification |
@@ -58,13 +61,14 @@ Benchmark-standard protocol on both datasets: train on the dataset's training sp
 
 # Investigation Process
 
-Not a debugging project; the investigative content is experimental: comparing evaluation outcomes with and without the spatial-temporal component and with and without re-ranking, per dataset, to see where each stage contributes.
+Not a debugging project; the investigative content is experimental. Two comparisons structure the project: (a) evaluation with and without the spatial-temporal component and with and without re-ranking, per dataset, to see where each stage contributes; (b) my extension experiment, base model versus colour-histogram-augmented model under an identical 60-epoch protocol, which produced a negative result, analysed in my project report.
 
 # Evidence
 
-- The complete pipeline code (17 modules, listed under Software Setup).
+- The complete pipeline code (18 modules, listed under Software Setup).
+- My project report: "Matching Individuals Across Time and Space Using Person Re-Identification", M.Sc. project report, Lakehead University, included in this repository as `Nahiyan_Al_Mahmood_Final_Project_Report.pdf`. It documents the colour histogram extension, the experiment protocol, and the results reported below.
 - Reference paper (the method's source publication): Wang et al., "Spatial-Temporal Person Re-Identification", AAAI 2019 (arXiv:1812.03282), included in this repository as `Spatial-Temporal_Person_Re-identification_report.pdf` for reference.
-- Executed Colab notebooks from the project period (November 2023 to February 2024), preserved as run with their outputs, in `notebooks/` (see `notebooks/README.md` for provenance). They contain the dataset preparation, the training invocations used (PCB with ResNet50 and ResNet101 variants), training logs, and evaluation output obtained with the authors' pretrained checkpoint.
+- Executed Colab notebooks from the project period (November 2023 to February 2024), preserved as run with their outputs, in `notebooks/` (see `notebooks/README.md` for provenance). They contain the dataset preparation, the training invocations used (PCB with ResNet50 and ResNet101 variants), training logs, and evaluation output obtained with the authors' pretrained checkpoint, plus a setup and run notebook for the PAUL comparison method.
 
 # Results
 
@@ -75,17 +79,26 @@ Published results for the method (Wang et al.), reported for context and **not**
 | Market-1501 | 91.2% | 98.1% |
 | DukeMTMC-reID | 83.8% | 94.4% |
 
-My work in this repository was the implementation, training, and evaluation of this pipeline as an M.Sc. project. Any future addition of my own reproduced metrics will be labelled as such, with run configuration.
+My experiment (from my project report): the colour histogram extension, with both configurations trained under an identical 60-epoch protocol on Market-1501. The figures are training and validation accuracy logged during training, **not** benchmark Rank-1/mAP:
+
+| Configuration | Training accuracy, final epoch | Validation accuracy, final epoch |
+|---|---|---|
+| Base model (no histogram features) | 99.88% | 100% |
+| With colour histogram features | 76.57% | 98.67% |
+
+The extension did not improve on the base model in this experiment. My report analyses why: colour inconsistency across cameras and lighting conditions, and a mismatch between global histogram features and the model's partition-based local features. The histogram model learned more slowly but steadily; the report discusses this as a possible generalisation trade-off, stated there as a hypothesis, not a demonstrated result.
+
+My work in this repository: implementation, training, and evaluation of the pipeline, the colour histogram extension experiment, and a comparison setup of a second published method (PAUL, see Basis & credit).
 
 # Root Cause Analysis
 
-Not applicable in the fault sense. The analytical question of the project is attribution of accuracy: appearance features alone plateau because of cross-camera ambiguity; the spatial-temporal constraint removes implausible matches before ranking, which is where the published gains come from.
+Not applicable in the fault sense. The analytical question of the project is attribution of accuracy: appearance features alone plateau because of cross-camera ambiguity; the spatial-temporal constraint removes implausible matches before ranking, which is where the published gains come from. The same attribution discipline applies to the extension experiment: my report attributes the histogram model's negative result to feature compatibility and colour consistency, summarised under Results.
 
 # Limitations
 
 - This is an adaptation of a research codebase, not an original architecture (see Basis & credit). My contribution is implementation, training, evaluation, and analysis.
 - Datasets are external and licence-restricted; they are not redistributed here.
-- My own run outputs are not archived in the repository, so my reproduced figures cannot be audited from this repo alone. Recorded here as a known gap.
+- Benchmark Rank-1/mAP from my own runs are not claimed anywhere in this repository. The archived outputs are training logs, an evaluation obtained with the authors' pretrained checkpoint, and the training/validation accuracy comparison in my report. Each is labelled as what it is.
 
 # Lessons Learned
 
@@ -94,9 +107,9 @@ Not applicable in the fault sense. The analytical question of the project is att
 
 # Future Work
 
-- Archive run configurations and result files alongside the code, so reproduced metrics are auditable.
+- Run the extension experiment through full benchmark evaluation (Rank-1/mAP) with archived result files, to test the generalisation hypothesis in my report.
 - Containerise the environment for one-command reproduction.
 
 # Basis & credit
 
-The code builds on the spatial-temporal person re-identification research codebase and method: Wang et al., "Spatial-Temporal Person Re-Identification", AAAI 2019. It is shared here as my M.Sc. project work — training, evaluation, and adaptation — not as an original-from-scratch implementation.
+The code builds on the spatial-temporal person re-identification research codebase and method: Wang et al., "Spatial-Temporal Person Re-Identification", AAAI 2019. It is shared here as my M.Sc. project work, training, evaluation, and adaptation, not as an original-from-scratch implementation. A second published method, PAUL (Yang et al., "Patch-based discriminative feature learning for unsupervised person re-identification", CVPR 2019), was set up and run for comparison during the same project (notebooks/05); its code is third-party and is not included in this repository.
